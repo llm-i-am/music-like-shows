@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Concerts &amp; Festivals — Tampa Bay &amp; Orlando</title>
+<meta name="description" content="A curated guide to upcoming live music around Tampa Bay and Orlando, with prices per person and direct links.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <h1>Concerts &amp; Festivals</h1>
+  <p class="subtitle">Live music around Tampa Bay &amp; Orlando</p>
+  <p class="header-count" id="header-count"></p>
+</header>
+
+<main>
+  <form class="control-bar glass" id="controls" aria-label="Filter shows">
+    <div class="control-row">
+      <label class="visually-hidden" for="q">Search artist, venue or city</label>
+      <input type="search" id="q" placeholder="Search artist, venue, city…" autocomplete="off">
+    </div>
+    <div class="control-row">
+      <div class="segmented" role="group" aria-label="Tier">
+        <button type="button" data-tier="" class="seg is-active">All tiers</button>
+        <button type="button" data-tier="1" class="seg">Tier 1</button>
+        <button type="button" data-tier="2" class="seg">Tier 2</button>
+        <button type="button" data-tier="3" class="seg">Tier 3</button>
+      </div>
+    </div>
+    <div class="control-row toggles">
+      <label class="toggle"><input type="checkbox" id="s-tier"> S-tier only</label>
+      <label class="toggle"><input type="checkbox" id="under70"> Under $70</label>
+      <label class="toggle"><input type="checkbox" id="past-toggle"> Show past shows</label>
+    </div>
+    <div class="control-row selects">
+      <label>City
+        <select id="city"><option value="">All cities</option></select>
+      </label>
+      <label>Venue
+        <select id="venue"><option value="">All venues</option></select>
+      </label>
+      <label>Price
+        <select id="price">
+          <option value="any">Any price</option>
+          <option value="under50">Under $50</option>
+          <option value="50-69">$50–$69</option>
+          <option value="70-100">$70–$100</option>
+          <option value="over100">Over $100</option>
+          <option value="unlisted">Price unlisted</option>
+        </select>
+      </label>
+      <label>Date
+        <select id="date-range">
+          <option value="any">Any date</option>
+          <option value="tonight">Tonight</option>
+          <option value="weekend">This weekend</option>
+          <option value="7">Next 7 days</option>
+          <option value="30">Next 30 days</option>
+        </select>
+      </label>
+      <label>Sort
+        <select id="sort">
+          <option value="date">Date</option>
+          <option value="price-asc">Price low→high</option>
+          <option value="price-desc">Price high→low</option>
+          <option value="best">Best first</option>
+          <option value="found">Recently found</option>
+        </select>
+      </label>
+    </div>
+    <div class="control-row">
+      <button type="button" id="clear-all" hidden>Clear all filters</button>
+    </div>
+  </form>
+
+  <p class="result-count" id="result-count" aria-live="polite"></p>
+  <section id="upcoming-list" class="show-list" aria-label="Upcoming shows"></section>
+  <p class="empty-state" id="empty-state" hidden></p>
+
+  <section id="past-section" hidden>
+    <h2 class="past-heading">Past shows</h2>
+    <div id="past-list" class="show-list past-list"></div>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
