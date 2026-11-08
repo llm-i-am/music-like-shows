@@ -213,12 +213,18 @@ function renderCard(show) {
   if (show.tier !== null) detail.appendChild(el("p", "", TIER_LINES[show.tier]));
   if (show.s_tier) detail.appendChild(el("p", "", "S-tier — top-shelf favourite"));
   if (show.found_date) detail.appendChild(el("p", "", foundLine(show.found_date)));
-  if (show.link) {
+  // Recall #1 WS-2: scheme guard at element creation, before branching --
+  // an href is set ONLY for http(s) links; any other non-empty link renders
+  // as a disabled span with no href.
+  const linkOk = !!show.link && /^https?:\/\//i.test(show.link);
+  if (linkOk) {
     const a = el("a", "link-button", show.link_label);
     a.href = show.link;
     a.target = "_blank";
     a.rel = "noopener noreferrer";
     detail.appendChild(a);
+  } else if (show.link) {
+    detail.appendChild(el("span", "buy link-disabled", "Link unavailable"));
   } else {
     detail.appendChild(el("p", "no-link", "No link in the listings"));
   }
