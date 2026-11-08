@@ -1,7 +1,7 @@
 {
  "counts": {
   "past": 7,
-  "upcoming": 61
+  "upcoming": 64
  },
  "shows": [
   {
@@ -411,6 +411,30 @@
    "updated": false,
    "venue": "Seminole Hard Rock Tampa Event Center",
    "venue_key": "Seminole Hard Rock Tampa Event Center"
+  },
+  {
+   "artist": "The Wrecks w/ Worry Club & Kid Sistr",
+   "city": "St. Petersburg",
+   "date_iso": "2026-11-15",
+   "date_text": "Sun Nov 15",
+   "found_date": "2026-11-08",
+   "id": "a4092b900a",
+   "link": "https://nightout.com/events/v/the-wrecks-jannus-live-saint-petersburg-2026-11-15/tickets",
+   "link_label": "Tickets",
+   "link_type": "tickets",
+   "over_100": false,
+   "past": false,
+   "per_day": false,
+   "price_label": "$51 pp",
+   "price_pp": 51,
+   "s_tier": false,
+   "state": "FL",
+   "sweet_spot": true,
+   "tier": 3,
+   "time_text": "6:00pm",
+   "updated": false,
+   "venue": "Jannus Live",
+   "venue_key": "Jannus Live"
   },
   {
    "artist": "George Clanton w/ Valgur",
@@ -891,6 +915,54 @@
    "updated": true,
    "venue": "Jannus Live",
    "venue_key": "Jannus Live"
+  },
+  {
+   "artist": "Two Friends",
+   "city": "Tampa",
+   "date_iso": "2026-12-31",
+   "date_text": "Thu Dec 31",
+   "found_date": "2026-11-08",
+   "id": "7586f7c347",
+   "link": "https://americanarenas.com/venue/seminole-hard-rock-tampa-event-center/",
+   "link_label": "Details",
+   "link_type": "details",
+   "over_100": false,
+   "past": false,
+   "per_day": false,
+   "price_label": "$65 pp",
+   "price_pp": 65,
+   "s_tier": false,
+   "state": "FL",
+   "sweet_spot": true,
+   "tier": 2,
+   "time_text": "9:00pm",
+   "updated": false,
+   "venue": "Seminole Hard Rock Tampa Event Center",
+   "venue_key": "Seminole Hard Rock Tampa Event Center"
+  },
+  {
+   "artist": "AJ Ghent & His Singing Guitar",
+   "city": "St. Petersburg",
+   "date_iso": "2027-01-02",
+   "date_text": "Sat Jan 2",
+   "found_date": "2026-11-08",
+   "id": "5215dba22d",
+   "link": "https://www.cltampa.com/music-2/the-best-new-concerts-coming-to-tampa-bay-including-andy-grammer-the-casualties-cold-steel-and-more/",
+   "link_label": "Article",
+   "link_type": "article",
+   "over_100": false,
+   "past": false,
+   "per_day": false,
+   "price_label": "$47 pp",
+   "price_pp": 47,
+   "s_tier": false,
+   "state": "FL",
+   "sweet_spot": true,
+   "tier": 2,
+   "time_text": "7:30pm",
+   "updated": false,
+   "venue": "Mahaffey Theater",
+   "venue_key": "Mahaffey Theater"
   },
   {
    "artist": "GRYFFIN",
@@ -1637,5 +1709,5 @@
    "venue_key": "St. Pete Pier"
   }
  ],
- "source_sha256": "431f5aea57054bff7586ff5b1deac91bc22b8de61cd708897b6a14b819f93817"
+ "source_sha256": "98c87794f1d8e2275b918ffb0e7720d6290f71afaf4455a889e2d363151aba8a"
 }
