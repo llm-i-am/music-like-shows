@@ -1,33 +1,9 @@
 {
  "counts": {
-  "past": 7,
-  "upcoming": 64
+  "past": 8,
+  "upcoming": 68
  },
  "shows": [
-  {
-   "artist": "The Brook and The Bluff",
-   "city": "St. Petersburg",
-   "date_iso": "2026-11-08",
-   "date_text": "Sun Nov 8",
-   "found_date": "2026-11-02",
-   "id": "abe8803100",
-   "link": "https://nightout.com/events/v/the-brook-and-the-bluff-jannus-live-saint-petersburg-2026-11-08/tickets",
-   "link_label": "Tickets",
-   "link_type": "tickets",
-   "over_100": false,
-   "past": false,
-   "per_day": false,
-   "price_label": "$43 pp",
-   "price_pp": 43,
-   "s_tier": false,
-   "state": "FL",
-   "sweet_spot": true,
-   "tier": 2,
-   "time_text": "8:00pm",
-   "updated": false,
-   "venue": "Jannus Live",
-   "venue_key": "Jannus Live"
-  },
   {
    "artist": "AJJ w/ Greet Death",
    "city": "Tampa",
@@ -293,6 +269,30 @@
    "venue_key": "Bilheimer Capitol Theatre"
   },
   {
+   "artist": "Jimmy Eat World w/ Hot Mulligan & Teen Jesus and The Jean Teasers",
+   "city": "Tampa",
+   "date_iso": "2026-11-14",
+   "date_text": "Sat Nov 14",
+   "found_date": "2026-11-09",
+   "id": "6850765960",
+   "link": "https://www.vividseats.com/jimmy-eat-world-tickets-tampa-midflorida-credit-union-amphitheatre-at-the-florida-state-fair-grounds-11-14-2026--concerts-rock/production/6640868",
+   "link_label": "Tickets",
+   "link_type": "tickets",
+   "over_100": false,
+   "past": false,
+   "per_day": false,
+   "price_label": "$31 pp",
+   "price_pp": 31,
+   "s_tier": false,
+   "state": "FL",
+   "sweet_spot": true,
+   "tier": 2,
+   "time_text": "7:00pm",
+   "updated": false,
+   "venue": "MIDFLORIDA Credit Union Amphitheatre",
+   "venue_key": "MIDFLORIDA Credit Union Amphitheatre"
+  },
+  {
    "artist": "SunSquabi w/ Phyphr",
    "city": "St. Petersburg",
    "date_iso": "2026-11-14",
@@ -459,6 +459,30 @@
    "updated": false,
    "venue": "The Orpheum",
    "venue_key": "The Orpheum"
+  },
+  {
+   "artist": "Ripe",
+   "city": "St. Petersburg",
+   "date_iso": "2026-11-20",
+   "date_text": "Fri Nov 20",
+   "found_date": "2026-11-09",
+   "id": "cf0809081b",
+   "link": "https://americanarenas.com/tickets/ripe/",
+   "link_label": "Details",
+   "link_type": "details",
+   "over_100": false,
+   "past": false,
+   "per_day": false,
+   "price_label": "$47 pp",
+   "price_pp": 47,
+   "s_tier": false,
+   "state": "FL",
+   "sweet_spot": true,
+   "tier": 1,
+   "time_text": "6:30pm",
+   "updated": false,
+   "venue": "SkyBeach Resort",
+   "venue_key": "SkyBeach Resort"
   },
   {
    "artist": "Blue October",
@@ -675,6 +699,30 @@
    "updated": false,
    "venue": "Jannus Live",
    "venue_key": "Jannus Live"
+  },
+  {
+   "artist": "Lou Gramm",
+   "city": "St. Petersburg",
+   "date_iso": "2026-12-04",
+   "date_text": "Fri Dec 4",
+   "found_date": "2026-11-09",
+   "id": "d3d58fe995",
+   "link": "https://americanarenas.com/venue/fergs-concert-pavilion/",
+   "link_label": "Details",
+   "link_type": "details",
+   "over_100": false,
+   "past": false,
+   "per_day": false,
+   "price_label": "$68 pp",
+   "price_pp": 68,
+   "s_tier": false,
+   "state": "FL",
+   "sweet_spot": true,
+   "tier": 3,
+   "time_text": "7:00pm",
+   "updated": false,
+   "venue": "Ferg's Pavilion",
+   "venue_key": "Ferg's Pavilion"
   },
   {
    "artist": "Samantha Fish w/ Cedric Burnside & Daddy Long Legs",
@@ -1037,6 +1085,30 @@
    "venue_key": "Jannus Live"
   },
   {
+   "artist": "Bachman-Turner Overdrive",
+   "city": "Clearwater",
+   "date_iso": "2027-01-08",
+   "date_text": "Fri Jan 8",
+   "found_date": "2026-11-09",
+   "id": "5873ef1d02",
+   "link": "https://www.vividseats.com/bachman-turner-overdrive-tickets/performer/167346",
+   "link_label": "Tickets",
+   "link_type": "tickets",
+   "over_100": false,
+   "past": false,
+   "per_day": false,
+   "price_label": "$73 pp",
+   "price_pp": 73,
+   "s_tier": false,
+   "state": "FL",
+   "sweet_spot": false,
+   "tier": 3,
+   "time_text": "7:30pm",
+   "updated": false,
+   "venue": "Ruth Eckerd Hall",
+   "venue_key": "Ruth Eckerd Hall"
+  },
+  {
    "artist": "Gillian Welch & David Rawlings",
    "city": "Clearwater",
    "date_iso": "2027-01-19",
@@ -1227,6 +1299,30 @@
    "updated": false,
    "venue": "Jannus Live",
    "venue_key": "Jannus Live"
+  },
+  {
+   "artist": "moe. & Karl Denson's Tiny Universe",
+   "city": "St. Petersburg",
+   "date_iso": "2027-02-12",
+   "date_text": "Fri Feb 12",
+   "found_date": "2026-11-09",
+   "id": "d8d0f2f0f1",
+   "link": "https://americanarenas.com/venue/fergs-concert-pavilion/",
+   "link_label": "Details",
+   "link_type": "details",
+   "over_100": false,
+   "past": false,
+   "per_day": false,
+   "price_label": "$69 pp",
+   "price_pp": 69,
+   "s_tier": false,
+   "state": "FL",
+   "sweet_spot": true,
+   "tier": 1,
+   "time_text": "7:00pm",
+   "updated": false,
+   "venue": "Ferg's Pavilion",
+   "venue_key": "Ferg's Pavilion"
   },
   {
    "artist": "Roger Waters Presents LEGACY: A Pink Floyd Show",
@@ -1541,6 +1637,30 @@
    "venue_key": "Jannus Live"
   },
   {
+   "artist": "The Brook and The Bluff",
+   "city": "St. Petersburg",
+   "date_iso": "2026-11-08",
+   "date_text": "Sun Nov 8",
+   "found_date": "2026-11-02",
+   "id": "abe8803100",
+   "link": "https://nightout.com/events/v/the-brook-and-the-bluff-jannus-live-saint-petersburg-2026-11-08/tickets",
+   "link_label": "Tickets",
+   "link_type": "tickets",
+   "over_100": false,
+   "past": true,
+   "per_day": false,
+   "price_label": "$43 pp",
+   "price_pp": 43,
+   "s_tier": false,
+   "state": "FL",
+   "sweet_spot": true,
+   "tier": 2,
+   "time_text": "8:00pm",
+   "updated": false,
+   "venue": "Jannus Live",
+   "venue_key": "Jannus Live"
+  },
+  {
    "artist": "Greensky Bluegrass",
    "city": "St. Petersburg",
    "date_iso": "2026-11-06",
@@ -1709,5 +1829,5 @@
    "venue_key": "St. Pete Pier"
   }
  ],
- "source_sha256": "d6f1996694c7d5228d484ffc2e018a94db446c475eab1a5323929fc33e6944ae"
+ "source_sha256": "64dcc3fda6e7e86d01117d6e237534ad0534d25b7f2ba3a47c36be3c425a35ee"
 }
