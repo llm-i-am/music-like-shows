@@ -1,343 +1,976 @@
-"use strict";
-/* Concerts & Festivals — client-side app (plan S4).
-   Fetch data/shows.json (same-origin, relative), render upcoming by
-   default; past only in the Past section behind its toggle. All controls
-   compose over one in-memory result set; state round-trips through the
-   URL query string (params: q,tier,s,under70,city,venue,price,date,sort,past). */
-
-const WEEKDAY_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const MONTH_LONG = ["January", "February", "March", "April", "May", "June", "July",
-  "August", "September", "October", "November", "December"];
-const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const TIER_LINES = {
-  1: "Tier 1 — strongest recommendation",
-  2: "Tier 2 — strong pick",
-  3: "Tier 3 — worth a look"
-};
-
-const state = {
-  q: "", tier: "", s: false, under70: false,
-  city: "", venue: "", price: "any", date: "any",
-  sort: "date", past: false
-};
-let DATA = null;
+import {
+  defaults,
+  regionalDay,
+  adapt,
+  validateData,
+  matches,
+  sortShows,
+  moneyInput,
+  dollars,
+  rangeFor,
+  dateLabel,
+} from "./js/model.js?v=1.0.0";
+import { readURL, writeURL } from "./js/url-state.js?v=1.0.0";
+import { PersonalStore, validateImport, PREFIX } from "./js/personal-store.js?v=1.0.0";
+import { el, card, detail } from "./js/render.js?v=1.0.0";
 
 const $ = (id) => document.getElementById(id);
-
-function localISO(d) {
-  const p = (n) => String(n).padStart(2, "0");
-  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
-}
-function parseISO(iso) {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d, 12, 0, 0);
-}
-function longDate(iso) {
-  const d = parseISO(iso);
-  return WEEKDAY_LONG[d.getDay()] + ", " + MONTH_LONG[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear();
-}
-function foundLine(foundDate) {
-  const d = parseISO(foundDate);
-  return "Found " + MONTH_SHORT[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear();
-}
-function priceLine(show) {
-  if (show.price_pp === null) return "Price unlisted";
-  if (show.per_day) return "$" + show.price_pp + " per person, per day";
-  return "$" + show.price_pp + " per person";
-}
-
-function readStateFromURL() {
-  const p = new URLSearchParams(location.search);
-  if (p.get("q")) state.q = p.get("q");
-  if (["1", "2", "3"].includes(p.get("tier"))) state.tier = p.get("tier");
-  state.s = p.get("s") === "1";
-  state.under70 = p.get("under70") === "1";
-  if (p.get("city")) state.city = p.get("city");
-  if (p.get("venue")) state.venue = p.get("venue");
-  if (p.get("price")) state.price = p.get("price");
-  if (p.get("date")) state.date = p.get("date");
-  if (p.get("sort")) state.sort = p.get("sort");
-  state.past = p.get("past") === "1";
-}
-function writeStateToURL() {
-  const p = new URLSearchParams();
-  if (state.q) p.set("q", state.q);
-  if (state.tier) p.set("tier", state.tier);
-  if (state.s) p.set("s", "1");
-  if (state.under70) p.set("under70", "1");
-  if (state.city) p.set("city", state.city);
-  if (state.venue) p.set("venue", state.venue);
-  if (state.price !== "any") p.set("price", state.price);
-  if (state.date !== "any") p.set("date", state.date);
-  if (state.sort !== "date") p.set("sort", state.sort);
-  if (state.past) p.set("past", "1");
-  const qs = p.toString();
-  history.replaceState(null, "", qs ? "?" + qs : location.pathname);
-}
-function isDefaultState() {
-  return !state.q && !state.tier && !state.s && !state.under70 && !state.city &&
-    !state.venue && state.price === "any" && state.date === "any" &&
-    state.sort === "date" && !state.past;
-}
-
-function priceBucketOk(show) {
-  const v = show.price_pp;
-  switch (state.price) {
-    case "any": return true;
-    case "under50": return v !== null && v < 50;
-    case "50-69": return v !== null && v >= 50 && v <= 69;
-    case "70-100": return v !== null && v >= 70 && v <= 100;
-    case "over100": return v !== null && v > 100;
-    case "unlisted": return v === null;
-    default: return true;
-  }
-}
-function dateRangeOk(show) {
-  if (state.date === "any") return true;
-  if (!show.date_iso) return false;
-  const today = new Date(); today.setHours(12, 0, 0, 0);
-  const todayISO = localISO(today);
-  const d = parseISO(show.date_iso);
-  if (state.date === "tonight") return show.date_iso === todayISO;
-  if (state.date === "weekend") {
-    const dow = today.getDay(); // 0 Sun .. 6 Sat
-    const sinceMonday = (dow + 6) % 7;
-    const friday = new Date(today); friday.setDate(today.getDate() - sinceMonday + 4);
-    const sunday = new Date(friday); sunday.setDate(friday.getDate() + 2);
-    return d >= friday && d <= sunday;
-  }
-  if (state.date === "7" || state.date === "30") {
-    const days = Number(state.date);
-    const end = new Date(today); end.setDate(today.getDate() + days - 1);
-    return d >= today && d <= end;
-  }
-  return true;
-}
-function matches(show, ignoreSearch) {
-  if (!ignoreSearch && state.q) {
-    const q = state.q.toLowerCase();
-    const hay = (show.artist + " " + show.venue + " " + show.city).toLowerCase();
-    if (!hay.includes(q)) return false;
-  }
-  if (state.tier && show.tier !== Number(state.tier)) return false;
-  if (state.s && !show.s_tier) return false;
-  if (state.under70 && !show.sweet_spot) return false;
-  if (state.city && show.city !== state.city) return false;
-  if (state.venue && show.venue_key !== state.venue) return false;
-  if (!priceBucketOk(show)) return false;
-  if (!dateRangeOk(show)) return false;
-  return true;
-}
-function sortShows(list) {
-  const byDate = (a, b) => {
-    if (a.date_iso === b.date_iso) return 0;
-    if (a.date_iso === null) return 1;
-    if (b.date_iso === null) return -1;
-    return a.date_iso < b.date_iso ? -1 : 1;
+let source = null,
+  shows = [],
+  state = readURL(location.search).state,
+  draft = null,
+  view = state.view,
+  returnState = null,
+  day = regionalDay(),
+  loadFailed = false;
+let toastTimer,
+  undoAction = null,
+  showTrigger = null,
+  filterTrigger = null,
+  openedWithHistory = false,
+  importPayload = null;
+const listLimits = new Map();
+let storage;
+try {
+  storage = localStorage;
+} catch {
+  storage = {
+    get length() {
+      throw Error("Unavailable");
+    },
+    setItem() {
+      throw Error("Unavailable");
+    },
   };
-  const out = list.slice();
-  switch (state.sort) {
-    case "price-asc":
-      out.sort((a, b) => {
-        if (a.price_pp === null && b.price_pp === null) return byDate(a, b);
-        if (a.price_pp === null) return 1;
-        if (b.price_pp === null) return -1;
-        return a.price_pp - b.price_pp || byDate(a, b);
-      }); break;
-    case "price-desc":
-      out.sort((a, b) => {
-        if (a.price_pp === null && b.price_pp === null) return byDate(a, b);
-        if (a.price_pp === null) return 1;
-        if (b.price_pp === null) return -1;
-        return b.price_pp - a.price_pp || byDate(a, b);
-      }); break;
-    case "best":
-      out.sort((a, b) => {
-        const ta = a.tier === null ? 99 : a.tier;
-        const tb = b.tier === null ? 99 : b.tier;
-        if (ta !== tb) return ta - tb;
-        if (a.s_tier !== b.s_tier) return a.s_tier ? -1 : 1;
-        return byDate(a, b);
-      }); break;
-    case "found":
-      out.sort((a, b) => {
-        if (a.found_date !== b.found_date) {
-          if (a.found_date === null) return 1;
-          if (b.found_date === null) return -1;
-          return a.found_date < b.found_date ? 1 : -1;
-        }
-        return byDate(a, b);
-      }); break;
-    default:
-      out.sort((a, b) => byDate(a, b) || ((a.tier || 99) - (b.tier || 99)) || a.artist.localeCompare(b.artist));
-  }
-  return out;
 }
-
-function el(tag, cls, text) {
-  const n = document.createElement(tag);
-  if (cls) n.className = cls;
-  if (text !== undefined) n.textContent = text;
-  return n;
+const store = new PersonalStore(storage);
+function toast(message, undo = null) {
+  clearTimeout(toastTimer);
+  undoAction = undo;
+  $("toast-copy").textContent = message;
+  $("undo").hidden = !undo;
+  $("toast").hidden = false;
+  toastTimer = setTimeout(
+    () => {
+      $("toast").hidden = true;
+      undoAction = null;
+    },
+    undo ? 10000 : 6500,
+  );
 }
-function renderCard(show) {
-  const card = el("article", "show-card glass");
-  const summary = el("button", "card-summary");
-  summary.type = "button";
-  summary.setAttribute("aria-expanded", "false");
-  const artistLine = el("p", "card-artist", show.artist);
-  if (show.s_tier) artistLine.appendChild(el("span", "pill pill-stier", "S-tier"));
-  if (show.updated) artistLine.appendChild(el("span", "pill pill-updated", "Updated"));
-  summary.appendChild(artistLine);
-  const when = el("p", "card-line");
-  const whenText = show.date_iso === null ? show.date_text : (show.date_text + ", " + show.time_text);
-  when.appendChild(el("strong", "", whenText));
-  summary.appendChild(when);
-  summary.appendChild(el("p", "card-line", show.venue + ", " + show.city));
-  const price = el("p", "card-line");
-  price.appendChild(el("strong", "", show.price_label));
-  if (show.tier !== null) price.appendChild(el("span", "pill pill-tier-" + show.tier, "Tier " + show.tier));
-  if (show.over_100) price.appendChild(el("span", "over-flag", "⚠ Over $100"));
-  summary.appendChild(price);
-  if (show.link) {
-    const lb = el("p", "card-line", show.link_label);
-    summary.appendChild(lb);
-  }
-  const detail = el("div", "card-detail");
-  detail.hidden = true;
-  const fullDate = show.date_iso === null ? show.date_text : longDate(show.date_iso);
-  detail.appendChild(el("p", "", fullDate));
-  detail.appendChild(el("p", "", "Time: " + show.time_text));
-  detail.appendChild(el("p", "", show.venue + ", " + show.city + ", FL"));
-  detail.appendChild(el("p", "", priceLine(show)));
-  if (show.tier !== null) detail.appendChild(el("p", "", TIER_LINES[show.tier]));
-  if (show.s_tier) detail.appendChild(el("p", "", "S-tier — top-shelf favourite"));
-  if (show.found_date) detail.appendChild(el("p", "", foundLine(show.found_date)));
-  // Recall #1 WS-2: scheme guard at element creation, before branching --
-  // an href is set ONLY for http(s) links; any other non-empty link renders
-  // as a disabled span with no href.
-  const linkOk = !!show.link && /^https?:\/\//i.test(show.link);
-  if (linkOk) {
-    const a = el("a", "link-button", show.link_label);
-    a.href = show.link;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    detail.appendChild(a);
-  } else if (show.link) {
-    detail.appendChild(el("span", "buy link-disabled", "Link unavailable"));
-  } else {
-    detail.appendChild(el("p", "no-link", "No link in the listings"));
-  }
-  summary.addEventListener("click", () => {
-    const open = detail.hidden;
-    detail.hidden = !open;
-    summary.setAttribute("aria-expanded", String(open));
-  });
-  card.appendChild(summary);
-  card.appendChild(detail);
-  return card;
+function syncStorageStatus() {
+  $("storage-warning").hidden = !(store.failed || store.corrupt);
+  $("storage-warning-text").textContent = store.failed
+    ? "Session only—your browser couldn’t save these choices. Export a backup before leaving."
+    : "Some saved data could not be read. Your remaining choices are intact; export a backup before making changes.";
 }
-
-function render() {
-  const upcomingAll = DATA.shows.filter((s) => !s.past);
-  const pastAll = DATA.shows.filter((s) => s.past);
-  $("header-count").textContent = upcomingAll.length + " upcoming shows · updated from the latest listings";
-  const upcoming = sortShows(upcomingAll.filter((s) => matches(s, false)));
-  const past = sortShows(pastAll.filter((s) => matches(s, false)));
-  $("result-count").textContent = upcoming.length + " shows";
-  const list = $("upcoming-list");
-  list.textContent = "";
-  upcoming.forEach((s) => list.appendChild(renderCard(s)));
-  const empty = $("empty-state");
-  if (upcoming.length === 0) {
-    empty.hidden = false;
-    if (state.q) {
-      const qMatchesSomething = DATA.shows.some((s) =>
-        (s.artist + " " + s.venue + " " + s.city).toLowerCase().includes(state.q.toLowerCase()));
-      empty.textContent = qMatchesSomething
-        ? "No shows match — try widening the filters."
-        : "No shows match — and no listing mentions “" + state.q + "”.";
-    } else {
-      empty.textContent = "No shows match — try widening the filters.";
-    }
-  } else {
-    empty.hidden = true;
-  }
-  const pastSection = $("past-section");
-  pastSection.hidden = !state.past;
-  if (state.past) {
-    const pl = $("past-list");
-    pl.textContent = "";
-    past.forEach((s) => pl.appendChild(renderCard(s)));
-  }
-  $("clear-all").hidden = isDefaultState();
-  writeStateToURL();
-}
-
-function buildSelects() {
-  const cities = [...new Set(DATA.shows.map((s) => s.city))].sort();
-  const citySel = $("city");
-  cities.forEach((c) => {
-    const o = el("option", "", c); o.value = c; citySel.appendChild(o);
-  });
-  const venueDisplay = new Map();
-  DATA.shows.forEach((s) => { if (!venueDisplay.has(s.venue_key)) venueDisplay.set(s.venue_key, s.venue); });
-  const venueSel = $("venue");
-  [...venueDisplay.keys()].sort().forEach((k) => {
-    const o = el("option", "", venueDisplay.get(k)); o.value = k; venueSel.appendChild(o);
-  });
-}
-function applyStateToControls() {
-  $("q").value = state.q;
-  document.querySelectorAll(".seg").forEach((b) =>
-    b.classList.toggle("is-active", b.dataset.tier === state.tier));
-  $("s-tier").checked = state.s;
-  $("under70").checked = state.under70;
-  $("past-toggle").checked = state.past;
-  $("city").value = state.city;
-  $("venue").value = state.venue;
-  $("price").value = state.price;
-  $("date-range").value = state.date;
-  $("sort").value = state.sort;
-}
-function wireControls() {
-  $("q").addEventListener("input", (e) => { state.q = e.target.value.trim(); render(); });
-  document.querySelectorAll(".seg").forEach((b) =>
-    b.addEventListener("click", () => {
-      state.tier = b.dataset.tier;
-      document.querySelectorAll(".seg").forEach((x) => x.classList.toggle("is-active", x === b));
-      render();
+function personalItems() {
+  const current = new Map(shows.map((s) => [s.id, s]));
+  return store
+    .entries()
+    .map((entry) => ({
+      entry,
+      show:
+        current.get(entry.id) ||
+        adapt(
+          entry.snapshot && typeof entry.snapshot === "object"
+            ? entry.snapshot
+            : {
+                id: entry.id,
+                artist: "Saved show",
+                date_text: "Date unavailable",
+              },
+          day,
+        ),
+      unavailable: !current.has(entry.id),
     }));
-  $("s-tier").addEventListener("change", (e) => { state.s = e.target.checked; render(); });
-  $("under70").addEventListener("change", (e) => { state.under70 = e.target.checked; render(); });
-  $("past-toggle").addEventListener("change", (e) => { state.past = e.target.checked; render(); });
-  $("city").addEventListener("change", (e) => { state.city = e.target.value; render(); });
-  $("venue").addEventListener("change", (e) => { state.venue = e.target.value; render(); });
-  $("price").addEventListener("change", (e) => { state.price = e.target.value; render(); });
-  $("date-range").addEventListener("change", (e) => { state.date = e.target.value; render(); });
-  $("sort").addEventListener("change", (e) => { state.sort = e.target.value; render(); });
-  $("clear-all").addEventListener("click", () => {
-    Object.assign(state, { q: "", tier: "", s: false, under70: false, city: "", venue: "",
-      price: "any", date: "any", sort: "date", past: false });
-    applyStateToControls();
-    render();
-  });
-  $("controls").addEventListener("submit", (e) => e.preventDefault());
 }
-
-fetch("data/shows.json")
-  .then((r) => { if (!r.ok) throw new Error("shows.json " + r.status); return r.json(); })
-  .then((data) => {
-    DATA = data;
-    readStateFromURL();
-    buildSelects();
-    applyStateToControls();
-    wireControls();
-    render();
-  })
-  .catch(() => {
-    $("result-count").textContent = "";
-    const empty = $("empty-state");
-    empty.hidden = false;
-    empty.textContent = "Listings could not be loaded — please try again.";
+function listInto(id, items, options = {}) {
+  const node = $(id),
+    active = document.activeElement,
+    activeId = active?.dataset?.id,
+    activeAction = active?.dataset?.action;
+  const old = active?.closest(".concert"),
+    index = old ? [...node.children].indexOf(old) : -1;
+  const limit = listLimits.get(id) || 100;
+  const frag = document.createDocumentFragment();
+  for (const item of items.slice(0, limit)) {
+    const show = item.show || item;
+    frag.append(
+      card(show, store.flags(show.id), {
+        ...options,
+        unavailable: !!item.unavailable,
+      }),
+    );
+  }
+  if (items.length > limit) {
+    const more = el(
+      "button",
+      "secondary",
+      `Show ${Math.min(100, items.length - limit)} more · ${items.length - limit} remaining`,
+    );
+    more.type = "button";
+    more.onclick = () => {
+      listLimits.set(id, limit + 100);
+      listInto(id, items, options);
+      node
+        .querySelectorAll(".concert")
+        [limit]?.querySelector("button")
+        ?.focus({ preventScroll: true });
+    };
+    frag.append(more);
+  }
+  node.replaceChildren(frag);
+  if (activeId && old && index !== -1) {
+    const target = [...node.querySelectorAll("[data-action]")].find(
+      (b) => b.dataset.id === activeId && b.dataset.action === activeAction,
+    );
+    if (target) target.focus({ preventScroll: true });
+    else if (view === "my") {
+      const fallback =
+        node.children[Math.min(index, node.children.length - 1)]?.querySelector(
+          "button",
+        ) || $("my-upcoming-count");
+      fallback.focus({ preventScroll: true });
+    }
+  }
+}
+function chips() {
+  const values = [];
+  const add = (text, clear) => values.push({ text, clear });
+  if (state.q)
+    add("“" + state.q + "”", () => {
+      state.q = "";
+      $("search").value = "";
+    });
+  if (state.city)
+    add(state.city, () => {
+      state.city = "";
+      state.venue = "";
+    });
+  if (state.venue)
+    add(state.venue, () => {
+      state.venue = "";
+    });
+  if (state.max !== null)
+    add(
+      "Up to " +
+        dollars(state.max) +
+        (state.prices === "include-unknown" ? " + unknown" : ""),
+      () => {
+        state.max = null;
+        if (
+          state.prices === "include-unknown" ||
+          (state.prices === "known" && !state.priceExplicit)
+        )
+          state.prices = "all";
+      },
+    );
+  if (state.min !== null || state.lt !== null)
+    add(
+      state.min === 10000 && state.minExclusive
+        ? "Over $100"
+        : "Legacy price range",
+      () => {
+        state.min = null;
+        state.lt = null;
+        state.minExclusive = false;
+        state.max = null;
+        state.prices = "all";
+      },
+    );
+  if (state.prices === "known" && state.max === null)
+    add("Known prices", () => (state.prices = "all"));
+  if (state.prices === "unknown-only")
+    add("Unknown prices", () => (state.prices = "all"));
+  if (state.date !== "any")
+    add(dateText(state), () => {
+      state.date = "any";
+      state.from = "";
+      state.to = "";
+    });
+  if (state.pick)
+    add(
+      { 1: "Top picks", 2: "Strong picks", 3: "Worth a look" }[state.pick],
+      () => (state.pick = ""),
+    );
+  if (state.favorite) add("Curator favorites", () => (state.favorite = false));
+  if (state.period === "past")
+    add("Past shows", () => {
+      state.period = "upcoming";
+      state.date = "any";
+    });
+  if (state.sort !== "date")
+    add(
+      "Sorted: " + $("sort").selectedOptions[0].textContent,
+      () => (state.sort = "date"),
+    );
+  const frag = document.createDocumentFragment();
+  for (const value of values) {
+    const b = el("button", "chip", value.text + " ×");
+    b.type = "button";
+    b.setAttribute("aria-label", "Remove filter: " + value.text);
+    b.onclick = () => {
+      value.clear();
+      commit();
+    };
+    frag.append(b);
+  }
+  if (values.length) {
+    const b = el("button", "quiet-button", "Reset all");
+    b.type = "button";
+    b.onclick = reset;
+    frag.append(b);
+  }
+  $("chips").replaceChildren(frag);
+  $("filter-count").textContent = values.length;
+  $("filter-count").hidden = !values.length;
+}
+function dateText(s) {
+  return {
+    any: s.period === "past" ? "All past dates" : "Any upcoming date",
+    today: "Today",
+    weekend: "This weekend",
+    7: "Next 7 days",
+    30: "Next 30 days",
+    custom: s.from + " – " + s.to,
+  }[s.date];
+}
+function render() {
+  $("discover-view").hidden = view !== "discover";
+  $("my-view").hidden = view !== "my";
+  $("settings-view").hidden = view !== "settings";
+  document.querySelectorAll(".navigation [data-nav]").forEach((b) => {
+    if (b.dataset.nav === view) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
   });
+  $("search").value = state.q;
+  $("search-clear").hidden = !state.q;
+  $("sort").value = state.sort;
+  $("date-quick").textContent = dateText(state) + " ⌄";
+  $("budget-quick").textContent =
+    state.max !== null ? "Up to " + dollars(state.max) + " ⌄" : "All prices ⌄";
+  chips();
+  const items = sortShows(
+    shows.filter((s) => matches(s, state, day)),
+    state.sort,
+  );
+  $("result-count").textContent = source
+    ? `${items.length} ${items.length === 1 ? "show" : "shows"}${state.period === "past" ? " · past" : ""}`
+    : loadFailed
+      ? "Listings unavailable"
+      : "Finding your next show…";
+  $("empty").hidden = !source || items.length > 0;
+  $("load-error").hidden = !loadFailed;
+  if (view === "discover")
+    listInto("show-list", items, {
+      personalBadges: store.setting("discoverBadges", true),
+    });
+  const saved = personalItems(),
+    upcoming = saved.filter((x) => !x.unavailable && !x.show.past);
+  $("saved-count").textContent = upcoming.length;
+  $("saved-count").hidden = !upcoming.length;
+  $("saved-count").setAttribute(
+    "aria-label",
+    upcoming.length + " upcoming saved shows",
+  );
+  const select = (x) =>
+    state.collection === "all" ||
+    (state.collection === "favorites" ? x.entry.favorite : x.entry.going);
+  const selected = saved.filter(select),
+    up = selected.filter((x) => !x.unavailable && !x.show.past),
+    past = selected.filter((x) => !x.unavailable && x.show.past),
+    unavailable = selected.filter((x) => x.unavailable);
+  document.querySelectorAll("[data-collection]").forEach((b) => {
+    const type = b.dataset.collection,
+      count = saved.filter(
+        (x) =>
+          type === "all" ||
+          (type === "favorites" ? x.entry.favorite : x.entry.going),
+      ).length;
+    b.textContent =
+      { all: "All saved", favorites: "Favorites", going: "Going" }[type] +
+      " " +
+      count;
+    b.setAttribute("aria-pressed", String(type === state.collection));
+  });
+  if (view === "my") {
+    listInto("my-upcoming", sortShows(up.map((x) => x.show)));
+    listInto("my-past-list", sortShows(past.map((x) => x.show)));
+    listInto("my-unavailable-list", unavailable);
+  }
+  $("my-upcoming-count").textContent = "Upcoming · " + up.length;
+  $("my-empty").hidden = selected.length > 0;
+  $("my-past-label").textContent = "Past shows · " + past.length;
+  $("my-past").hidden = !past.length;
+  $("my-unavailable-label").textContent =
+    "Unavailable listings · " + unavailable.length;
+  $("my-unavailable").hidden = !unavailable.length;
+  syncStorageStatus();
+}
+function writeHistory(push = true) {
+  const query = writeURL({
+    ...state,
+    view: view === "settings" ? "discover" : view,
+  });
+  history[push ? "pushState" : "replaceState"](
+    { view },
+    "",
+    location.pathname + query,
+  );
+}
+function commit(push = true) {
+  listLimits.clear();
+  render();
+  writeHistory(push);
+}
+function reset() {
+  state = { ...defaults(), view: "discover" };
+  view = "discover";
+  commit();
+}
+function navigate(next) {
+  if (view === "discover") returnState = { ...state };
+  if (next === "discover" && returnState) state = { ...returnState, show: "" };
+  if (next === "my" && view !== "my")
+    state.collection = store.setting("defaultCollection", "all");
+  view = next;
+  state.view = next === "settings" ? "discover" : next;
+  state.show = "";
+  commit();
+  window.scrollTo({ top: 0 });
+  $(
+    next === "my"
+      ? "my-title"
+      : next === "settings"
+        ? "settings-title"
+        : "discover-title",
+  ).setAttribute("tabindex", "-1");
+  $(
+    next === "my"
+      ? "my-title"
+      : next === "settings"
+        ? "settings-title"
+        : "discover-title",
+  ).focus({ preventScroll: true });
+}
+function lock() {
+  document.body.classList.toggle(
+    "locked",
+    !!document.querySelector("dialog[open]"),
+  );
+}
+function currentShow(id) {
+  return (
+    shows.find((s) => s.id === id) ||
+    personalItems().find((x) => x.show.id === id)?.show
+  );
+}
+function showContent() {
+  const active = document.activeElement,
+    action = active?.dataset?.action,
+    id = active?.dataset?.id;
+  const show = currentShow(state.show);
+  const content = $("show-content");
+  if (show) {
+    const entry = store.entries().find((x) => x.id === show.id);
+    content.replaceChildren(
+      detail(
+        show,
+        store.flags(show.id),
+        !shows.some((s) => s.id === show.id),
+        entry?.snapshot,
+      ),
+    );
+  } else {
+    const title = el("h2", "", "This listing is unavailable");
+    title.id = "show-title";
+    content.replaceChildren(
+      title,
+      el(
+        "p",
+        "",
+        "It may no longer be in this guide. Close this panel to browse other shows.",
+      ),
+    );
+  }
+  if (action && id)
+    [...content.querySelectorAll("[data-action]")]
+      .find((b) => b.dataset.action === action && b.dataset.id === id)
+      ?.focus({ preventScroll: true });
+}
+function openShow(id, trigger = null, push = true) {
+  state.show = id;
+  showTrigger = trigger;
+  if (push) {
+    writeHistory(true);
+    openedWithHistory = true;
+  } else openedWithHistory = false;
+  showContent();
+  if (!$("show-dialog").open) $("show-dialog").showModal();
+  lock();
+  $("show-close").focus();
+}
+function closeShow() {
+  if (!$("show-dialog").open) return;
+  $("show-dialog").close();
+  lock();
+  if (openedWithHistory) history.back();
+  else {
+    state.show = "";
+    writeHistory(false);
+  }
+  showTrigger?.focus({ preventScroll: true });
+}
+function flip(id, flag) {
+  const show = currentShow(id);
+  if (!show) return;
+  const before = store.flags(id)[flag];
+  // Capture first-saved facts, not a continually overwritten snapshot.
+  const previous = store.get("snapshot:" + encodeURIComponent(id));
+  store.setFlag(id, flag, !before, previous || show.raw);
+  render();
+  if ($("show-dialog").open) showContent();
+  const first = !store.setting("educated", false);
+  if (first) store.put("setting:educated", true);
+  toast(
+    store.failed
+      ? "Session only—export to keep this choice."
+      : (flag === "favorite"
+          ? before
+            ? "Removed from Favorites"
+            : "Added to Favorites"
+          : before
+            ? "Removed Going"
+            : "Marked Going") +
+          (first ? " · Saved on this browser; not public." : ""),
+    () => {
+      store.setFlag(id, flag, before, previous || show.raw);
+      render();
+      if ($("show-dialog").open) showContent();
+      toast("Choice restored.");
+    },
+  );
+}
+function fillOptions(id, values, value, all) {
+  const sel = $(id);
+  sel.replaceChildren(new Option(all, ""));
+  for (const [key, label, count] of values)
+    sel.add(new Option(label + " (" + count + ")", key));
+  if (value && !values.some((x) => x[0] === value))
+    sel.add(new Option(value + " (0)", value));
+  sel.value = value;
+}
+function facets() {
+  const period = $("f-period").value,
+    city = $("f-city").value,
+    venue = $("f-venue").value;
+  const available = shows.filter((x) => (period === "past" ? x.past : !x.past));
+  const cities = new Map();
+  available.forEach((x) => cities.set(x.city, (cities.get(x.city) || 0) + 1));
+  fillOptions(
+    "f-city",
+    [...cities].sort().map(([k, n]) => [k, k, n]),
+    city,
+    "All listed cities",
+  );
+  const venues = new Map();
+  available
+    .filter((x) => !city || x.city === city)
+    .forEach((x) => {
+      const prev = venues.get(x.venueKey);
+      venues.set(x.venueKey, [x.venue, (prev?.[1] || 0) + 1]);
+    });
+  fillOptions(
+    "f-venue",
+    [...venues].sort().map(([k, [label, n]]) => [k, label, n]),
+    venue,
+    "All listed venues",
+  );
+}
+function fillDraft() {
+  for (const key of [
+    "period",
+    "date",
+    "from",
+    "to",
+    "city",
+    "venue",
+    "pick",
+    "prices",
+  ])
+    $("f-" + key).value = draft[key];
+  $("f-max").value = draft.max === null ? "" : String(draft.max / 100);
+  $("f-favorite").checked = draft.favorite;
+  facets();
+  previewDraft();
+}
+function draftFromControls() {
+  const next = { ...draft };
+  for (const key of [
+    "period",
+    "date",
+    "from",
+    "to",
+    "city",
+    "venue",
+    "pick",
+    "prices",
+  ])
+    next[key] = $("f-" + key).value;
+  next.favorite = $("f-favorite").checked;
+  next.max = next.prices === "unknown-only" ? null : moneyInput($("f-max").value);
+  if (
+    next.period === "past" &&
+    ["today", "weekend", "7", "30"].includes(next.date)
+  )
+    next.date = "any";
+  if (next.prices === "unknown-only") {
+    next.max = null;
+    next.min = null;
+    next.lt = null;
+    next.minExclusive = false;
+  } else if (next.max !== null && next.prices === "all") next.prices = "known";
+  if (next.date === "custom" && (!next.from || !next.to || next.from > next.to))
+    throw Error(
+      "Choose a valid start and end date, with the end on or after the start.",
+    );
+  return next;
+}
+function previewDraft() {
+  const past = $("f-period").value === "past";
+  for (const o of $("f-date").options)
+    o.disabled = past && ["today", "weekend", "7", "30"].includes(o.value);
+  if (past && ["today", "weekend", "7", "30"].includes($("f-date").value))
+    $("f-date").value = "any";
+  $("custom-dates").hidden = $("f-date").value !== "custom";
+  $("f-max").disabled = $("f-prices").value === "unknown-only";
+  try {
+    const next = draftFromControls(),
+      range = rangeFor(next, day);
+    $("filter-apply").textContent =
+      "Show " + shows.filter((s) => matches(s, next, day)).length + " concerts";
+    $("filter-error").hidden = true;
+    $("date-explanation").textContent =
+      range && next.date !== "custom"
+        ? dateLabel(range[0]) + " – " + dateLabel(range[1]) + " · Eastern time"
+        : "All event times are Eastern.";
+  } catch {
+    $("filter-apply").textContent = "Apply filters";
+  }
+}
+function openFilters(target = "filter-title") {
+  filterTrigger = document.activeElement;
+  draft = { ...state };
+  fillDraft();
+  $("price-info").hidden = true;
+  $("price-info-button").setAttribute("aria-expanded", "false");
+  $("filter-error").hidden = true;
+  $("filter-dialog").showModal();
+  lock();
+  $(target).focus();
+}
+function closeFilters() {
+  $("filter-dialog").close();
+  lock();
+  draft = null;
+  filterTrigger?.focus({ preventScroll: true });
+}
+function exportChoices() {
+  const blob = new Blob([JSON.stringify(store.export(), null, 2)], {
+      type: "application/json",
+    }),
+    url = URL.createObjectURL(blob),
+    a = el("a");
+  a.href = url;
+  a.download = "music-like-shows-choices-" + day + ".json";
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast("Exported your concert choices.");
+}
+async function confirmAction(title, copy, label = "Continue", extra = null) {
+  $("confirm-title").textContent = title;
+  $("confirm-copy").textContent = copy;
+  $("confirm-accept").textContent = label;
+  $("confirm-extra").replaceChildren();
+  if (extra) $("confirm-extra").append(extra);
+  const dialog = $("confirm-dialog");
+  dialog.returnValue = "cancel";
+  dialog.showModal();
+  lock();
+  dialog.querySelector('[value="cancel"]').focus();
+  return new Promise((resolve) =>
+    dialog.addEventListener(
+      "close",
+      () => {
+        lock();
+        resolve(dialog.returnValue === "confirm");
+      },
+      { once: true },
+    ),
+  );
+}
+async function share(url, title) {
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, url });
+      return;
+    } catch (e) {
+      if (e.name === "AbortError") return;
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    toast("Link copied.");
+  } catch {
+    const input = el("input");
+    input.value = url;
+    input.readOnly = true;
+    input.setAttribute("aria-label", "Link to copy");
+    await confirmAction(
+      "Copy this link",
+      "Select and copy the link below.",
+      "Done",
+      input,
+    );
+  }
+}
+function applyTheme() {
+  const theme = store.setting("theme", "system");
+  document.documentElement.dataset.theme = ["system", "dark", "light"].includes(
+    theme,
+  )
+    ? theme
+    : "system";
+  document.documentElement.dataset.reduceGlass = String(
+    store.setting("reduceGlass", false),
+  );
+  const dark =
+    theme === "dark" ||
+    (theme === "system" && matchMedia("(prefers-color-scheme:dark)").matches);
+  document
+    .querySelectorAll('meta[name="theme-color"]')
+    .forEach((m) => (m.content = dark ? "#0d101c" : "#f5f3fa"));
+}
+function settings() {
+  $("theme").value = store.setting("theme", "system");
+  $("reduce-glass").checked = store.setting("reduceGlass", false);
+  $("default-collection").value = store.setting("defaultCollection", "all");
+  $("past-expanded").checked = store.setting("pastExpanded", false);
+  $("my-past").open = store.setting("pastExpanded", false);
+  $("discover-badges").checked = store.setting("discoverBadges", true);
+  applyTheme();
+}
+async function load() {
+  loadFailed = false;
+  render();
+  try {
+    const response = await fetch("data/shows.json", {
+      cache: "no-cache",
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!response.ok) throw Error("HTTP " + response.status);
+    source = validateData(await response.json());
+    shows = source.shows.map((raw) => adapt(raw, day));
+    const parsed = readURL(location.search, shows);
+    state = parsed.state;
+    view = history.state?.view || state.view;
+    loadFailed = false;
+    render();
+    writeHistory(false);
+    if (state.show) openShow(state.show, null, false);
+    if (parsed.corrected) toast("An outdated filter was adjusted.");
+  } catch (error) {
+    console.error("Could not load concert listings:", error);
+    loadFailed = true;
+    render();
+  }
+}
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.nav) {
+    navigate(b.dataset.nav);
+    return;
+  }
+  if (b.hasAttribute("data-open-settings")) {
+    navigate("settings");
+    $(b.dataset.settingsTarget || "about-guide").scrollIntoView();
+    return;
+  }
+  if (b.dataset.collection) {
+    state.collection = b.dataset.collection;
+    commit();
+    return;
+  }
+  if (b.dataset.action) {
+    const { id, action } = b.dataset;
+    if (action === "details") openShow(id, b);
+    else if (action === "share")
+      await share(
+        location.origin +
+          location.pathname +
+          writeURL({ ...defaults(), show: id }),
+        currentShow(id)?.artist || "Concert",
+      );
+    else flip(id, action);
+    return;
+  }
+  if (b.hasAttribute("data-max")) {
+    $("f-max").value = b.dataset.max;
+    $("f-prices").value = b.dataset.max === "" ? "all" : "known";
+    draft.priceExplicit = false;
+    draft.min = null;
+    draft.lt = null;
+    draft.minExclusive = false;
+    previewDraft();
+    return;
+  }
+  if (b.dataset.clear) {
+    const kind = b.dataset.clear,
+      n = store.entries().filter((x) => kind === "all" || x[kind]).length;
+    const exportButton = el("button", "secondary", "Export a backup first");
+    exportButton.type = "button";
+    exportButton.onclick = exportChoices;
+    if (
+      await confirmAction(
+        "Clear saved choices?",
+        `This removes ${n} ${n === 1 ? "choice" : "choices"} from this browser. Other settings stay unchanged. Export first if you want a backup.`,
+        "Clear choices",
+        exportButton,
+      )
+    ) {
+      store.clear(kind);
+      render();
+      toast("Saved choices cleared.");
+    }
+    return;
+  }
+});
+$("filters-open").onclick = () => openFilters();
+$("date-quick").onclick = () => openFilters("f-date");
+$("budget-quick").onclick = () => openFilters("f-max");
+$("filter-cancel").onclick = closeFilters;
+$("filter-dialog").addEventListener("cancel", (e) => {
+  e.preventDefault();
+  closeFilters();
+});
+$("filter-dialog").addEventListener("click", (e) => {
+  if (e.target === $("filter-dialog")) {
+    const r = e.target.getBoundingClientRect();
+    if (
+      e.clientX < r.left ||
+      e.clientX > r.right ||
+      e.clientY < r.top ||
+      e.clientY > r.bottom
+    )
+      closeFilters();
+  }
+});
+$("filter-reset").onclick = () => {
+  draft = { ...defaults(), q: "", sort: "date" };
+  fillDraft();
+};
+$("price-info-button").onclick = () => {
+  const open = $("price-info").hidden;
+  $("price-info").hidden = !open;
+  $("price-info-button").setAttribute("aria-expanded", String(open));
+};
+$("filter-form").addEventListener("input", (e) => {
+  if (e.target.id === "f-max") {
+    draft.min = null;
+    draft.lt = null;
+    draft.minExclusive = false;
+    if (e.target.value !== "" && $("f-prices").value === "all")
+      $("f-prices").value = "known";
+    else if (
+      e.target.value === "" &&
+      !draft.priceExplicit &&
+      $("f-prices").value === "known"
+    )
+      $("f-prices").value = "all";
+  }
+  previewDraft();
+});
+$("filter-form").addEventListener("change", (e) => {
+  if (e.target.id === "f-prices") {
+    draft.priceExplicit = e.target.value !== "all";
+    if (e.target.value === "all") {
+      $("f-max").value = "";
+      draft.min = null;
+      draft.lt = null;
+      draft.minExclusive = false;
+    }
+  }
+  if (["f-city", "f-period"].includes(e.target.id)) {
+    if (e.target.id === "f-city" && $("f-venue").value) {
+      $("f-venue").value = "";
+      toast("Venue cleared for the selected city.");
+    }
+    facets();
+  }
+  previewDraft();
+});
+$("filter-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  try {
+    const next = draftFromControls();
+    state = { ...next, show: "" };
+    closeFilters();
+    commit();
+  } catch (error) {
+    $("filter-error").textContent = error.message;
+    $("filter-error").hidden = false;
+    $("filter-error").scrollIntoView({ block: "nearest" });
+  }
+});
+let searchTimer;
+$("search").oninput = (e) => {
+  state.q = e.target.value.slice(0, 200);
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => commit(false), 120);
+};
+$("search-clear").onclick = () => {
+  clearTimeout(searchTimer);
+  state.q = "";
+  commit(false);
+  $("search").focus();
+};
+$("sort").onchange = (e) => {
+  state.sort = e.target.value;
+  commit();
+};
+$("reset-empty").onclick = reset;
+$("retry").onclick = load;
+$("show-close").onclick = closeShow;
+$("show-dialog").addEventListener("cancel", (e) => {
+  e.preventDefault();
+  closeShow();
+});
+$("show-dialog").addEventListener("click", (e) => {
+  if (e.target === $("show-dialog")) {
+    const r = e.target.getBoundingClientRect();
+    if (
+      e.clientX < r.left ||
+      e.clientX > r.right ||
+      e.clientY < r.top ||
+      e.clientY > r.bottom
+    )
+      closeShow();
+  }
+});
+$("share-filters").onclick = () =>
+  share(
+    location.origin +
+      location.pathname +
+      writeURL({ ...state, view: "discover", show: "", collection: "all" }),
+    "Concerts & Festivals",
+  );
+$("export").onclick = exportChoices;
+$("warning-export").onclick = exportChoices;
+$("import").onclick = () => $("import-file").click();
+$("import-file").onchange = async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = "";
+  if (!file) return;
+  try {
+    if (file.size > 1000000) throw Error("Choose an export smaller than 1 MB.");
+    importPayload = validateImport(JSON.parse(await file.text()));
+    const wrap = el("label", "check-label"),
+      check = el("input");
+    check.type = "checkbox";
+    wrap.append(
+      check,
+      document.createTextNode("Replace existing choices instead of merging"),
+    );
+    if (
+      await confirmAction(
+        "Import " + importPayload.shows.length + " saved shows?",
+        "Merge adds choices without removing existing Favorites or Going. Replace clears existing choices first.",
+        "Import choices",
+        wrap,
+      )
+    ) {
+      if (
+        check.checked &&
+        !(await confirmAction(
+          "Replace all existing choices?",
+          "This removes current choices before importing. Export a backup first if needed.",
+          "Replace choices",
+        ))
+      )
+        return;
+      store.importFile(importPayload, check.checked);
+      render();
+      toast("Concert choices imported.");
+    }
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    importPayload = null;
+  }
+};
+for (const [id, key] of [
+  ["theme", "theme"],
+  ["reduce-glass", "reduceGlass"],
+  ["default-collection", "defaultCollection"],
+  ["past-expanded", "pastExpanded"],
+  ["discover-badges", "discoverBadges"],
+])
+  $(id).onchange = (e) => {
+    store.put(
+      "setting:" + key,
+      e.target.type === "checkbox" ? e.target.checked : e.target.value,
+    );
+    settings();
+    render();
+  };
+$("toast-close").onclick = () => {
+  $("toast").hidden = true;
+};
+$("undo").onclick = () => {
+  const undo = undoAction;
+  undoAction = null;
+  undo?.();
+};
+window.addEventListener("storage", (e) => {
+  if (e.key?.startsWith(PREFIX)) {
+    store.receive(e.key, e.newValue);
+    settings();
+    render();
+    if ($("show-dialog").open) showContent();
+  }
+});
+window.addEventListener("popstate", () => {
+  const parsed = readURL(location.search, shows);
+  state = parsed.state;
+  view = history.state?.view || state.view;
+  if (state.show) openShow(state.show, null, false);
+  else if ($("show-dialog").open) {
+    $("show-dialog").close();
+    lock();
+    showTrigger?.focus({ preventScroll: true });
+  }
+  render();
+});
+function refreshDay() {
+  const next = regionalDay();
+  if (next !== day) {
+    day = next;
+    shows = source ? source.shows.map((raw) => adapt(raw, day)) : [];
+    render();
+  }
+}
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) refreshDay();
+});
+setInterval(refreshDay, 60000);
+matchMedia("(prefers-color-scheme:dark)").addEventListener(
+  "change",
+  applyTheme,
+);
+settings();
+render();
+load();

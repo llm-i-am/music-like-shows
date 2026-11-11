@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Existing Music Like Shows data format",
+  "description": "Documentation for the existing format, not a request to migrate source data. Unknown properties are intentionally preserved. IDs must also be unique (checked by validate-data).",
+  "type": "object",
+  "required": ["shows"],
+  "additionalProperties": true,
+  "properties": {
+    "shows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "artist": { "type": ["string", "null"] },
+          "date_iso": { "type": ["string", "null"] },
+          "price_pp": { "type": ["number", "null"] },
+          "per_day": { "type": "boolean" },
+          "city": { "type": ["string", "null"] },
+          "venue": { "type": ["string", "null"] },
+          "link": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

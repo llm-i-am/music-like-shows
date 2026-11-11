@@ -1,90 +1,551 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
-<title>Concerts &amp; Festivals — Tampa Bay &amp; Orlando</title>
-<meta name="description" content="A curated guide to upcoming live music around Tampa Bay and Orlando, with prices per person and direct links.">
-<link rel="stylesheet" href="styles.css">
-</head>
-<body>
-<header class="site-header">
-  <h1>Concerts &amp; Festivals</h1>
-  <p class="subtitle">Live music around Tampa Bay &amp; Orlando</p>
-  <p class="header-count" id="header-count"></p>
-</header>
-
-<main>
-  <form class="control-bar glass" id="controls" aria-label="Filter shows">
-    <div class="control-row">
-      <label class="visually-hidden" for="q">Search artist, venue or city</label>
-      <input type="search" id="q" placeholder="Search artist, venue, city…" autocomplete="off">
-    </div>
-    <div class="control-row">
-      <div class="segmented" role="group" aria-label="Tier">
-        <button type="button" data-tier="" class="seg is-active">All tiers</button>
-        <button type="button" data-tier="1" class="seg">Tier 1</button>
-        <button type="button" data-tier="2" class="seg">Tier 2</button>
-        <button type="button" data-tier="3" class="seg">Tier 3</button>
+<!doctype html>
+<html lang="en" data-theme="system">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="theme-color"
+      content="#f5f3fa"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#0d101c"
+      media="(prefers-color-scheme: dark)"
+    />
+    <title>Concerts & Festivals · Tampa Bay & Orlando</title>
+    <meta
+      name="description"
+      content="Your next good night out. Ben's curated concerts around Tampa Bay and Orlando. Save favorites and keep track of where you're going."
+    />
+    <meta
+      property="og:title"
+      content="Your next good night out · Concerts & Festivals"
+    />
+    <meta
+      property="og:description"
+      content="Curated live music around Tampa Bay & Orlando. Find a show, save a favorite, make a night of it."
+    />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:url"
+      content="https://llm-i-am.github.io/music-like-shows/"
+    />
+    <meta
+      property="og:image"
+      content="https://llm-i-am.github.io/music-like-shows/assets/share.png"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://llm-i-am.github.io/music-like-shows/" />
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/touch-icon.png" />
+    <script src="js/theme.js?v=1.0.0"></script>
+    <link rel="stylesheet" href="styles.css?v=1.0.0" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to shows</a>
+    <div class="ambient" aria-hidden="true"></div>
+    <header class="site-header shell">
+      <a class="brand" href="./" aria-label="Concerts and Festivals home"
+        ><span class="brand-mark" aria-hidden="true">♫</span
+        ><span>Concerts <span class="brand-amp">&</span> Festivals</span></a
+      ><span class="region">Tampa Bay & Orlando</span>
+    </header>
+    <nav class="navigation glass" aria-label="Main navigation">
+      <button type="button" data-nav="discover" aria-current="page">
+        <span aria-hidden="true">✦</span> Discover</button
+      ><button type="button" data-nav="my">
+        <span aria-hidden="true">♡</span> My Shows
+        <span id="saved-count" class="nav-count" hidden>0</span></button
+      ><button type="button" data-nav="settings">
+        <span aria-hidden="true">☷</span> Settings
+      </button>
+    </nav>
+    <main id="main" class="shell" tabindex="-1">
+      <section id="discover-view" aria-labelledby="discover-title">
+        <div class="hero">
+          <p class="eyebrow">LIVE MUSIC. GOOD COMPANY.</p>
+          <h1 id="discover-title">Your next <em>good night out.</em></h1>
+          <p class="hero-copy">
+            Ben's curated picks around Tampa Bay & Orlando.
+          </p>
+        </div>
+        <div class="search-bar glass">
+          <label class="search-label" for="search"
+            ><span aria-hidden="true">⌕</span
+            ><span class="sr-only"
+              >Search artists, venues, or cities</span
+            ></label
+          ><input
+            id="search"
+            type="search"
+            maxlength="200"
+            placeholder="Artist, venue, or city…"
+            autocomplete="off"
+          /><button
+            id="search-clear"
+            class="icon-button"
+            type="button"
+            aria-label="Clear search"
+            hidden
+          >
+            ×</button
+          ><button id="filters-open" type="button" class="filter-button">
+            Filters <span id="filter-count" hidden>0</span
+            ><span aria-hidden="true">☷</span>
+          </button>
+        </div>
+        <div class="quick-row" role="group" aria-label="Quick filters">
+          <button id="date-quick" class="quick-pill" type="button">
+            Any upcoming date <span aria-hidden="true">⌄</span></button
+          ><button id="budget-quick" class="quick-pill" type="button">
+            All prices <span aria-hidden="true">⌄</span></button
+          ><button id="share-filters" class="quiet-button" type="button">
+            Share
+          </button>
+        </div>
+        <div
+          id="chips"
+          class="chips"
+          role="group"
+          aria-label="Active filters"
+        ></div>
+        <div class="results-bar">
+          <h2 id="result-count" aria-live="polite">Finding your next show…</h2>
+          <label class="sort-control"
+            ><span class="sr-only">Sort shows</span
+            ><select id="sort">
+              <option value="date">Soonest first</option>
+              <option value="price-asc">Price: low to high</option>
+              <option value="price-desc">Price: high to low</option>
+              <option value="best">Curator's picks</option>
+              <option value="found">Recently added</option>
+            </select></label
+          >
+        </div>
+        <div id="load-error" class="empty-panel" hidden>
+          <h2>Couldn't load the listings</h2>
+          <p>Please try again. Your saved choices are still on this browser.</p>
+          <button id="retry" class="primary" type="button">Try again</button>
+        </div>
+        <div
+          id="show-list"
+          class="show-list"
+          role="group"
+          aria-label="Concert listings"
+        ></div>
+        <div id="empty" class="empty-panel" hidden>
+          <span class="empty-symbol" aria-hidden="true">♫</span>
+          <h2>No matching shows</h2>
+          <p>
+            Try another search or widen your filters. This is a curated guide,
+            so some shows may not be listed.
+          </p>
+          <button id="reset-empty" class="primary" type="button">
+            Reset filters
+          </button>
+        </div>
+      </section>
+      <section
+        id="my-view"
+        class="secondary-view"
+        aria-labelledby="my-title"
+        hidden
+      >
+        <p class="eyebrow">MAKE PLANS. KEEP THE MEMORIES.</p>
+        <h1 id="my-title">Your shows.</h1>
+        <p class="page-intro">
+          A little less “who was that again?” A little more “see you there.”
+        </p>
+        <p class="privacy-line">
+          Private to this browser ·
+          <button
+            class="text-button"
+            data-open-settings
+            data-settings-target="saving-info"
+            type="button"
+          >
+            About saving
+          </button>
+        </p>
+        <div
+          class="segmented glass"
+          id="collections"
+          role="group"
+          aria-label="Saved collection"
+        >
+          <button type="button" data-collection="all" aria-pressed="true">
+            All saved</button
+          ><button
+            type="button"
+            data-collection="favorites"
+            aria-pressed="false"
+          >
+            Favorites</button
+          ><button type="button" data-collection="going" aria-pressed="false">
+            Going
+          </button>
+        </div>
+        <h2 id="my-upcoming-count" class="section-label" tabindex="-1">
+          Upcoming
+        </h2>
+        <div id="my-upcoming" class="show-list"></div>
+        <div id="my-empty" class="empty-panel" hidden>
+          <span class="empty-symbol" aria-hidden="true">♡</span>
+          <h2>Your next night starts here</h2>
+          <p>
+            Favorite a show to remember it. Mark Going when you plan to attend.
+            Neither action buys a ticket.
+          </p>
+          <button type="button" class="primary" data-nav="discover">
+            Find a show
+          </button>
+        </div>
+        <details id="my-past" class="saved-section">
+          <summary id="my-past-label">Past shows</summary>
+          <div id="my-past-list" class="show-list"></div>
+        </details>
+        <details id="my-unavailable" class="saved-section">
+          <summary id="my-unavailable-label">Unavailable listings</summary>
+          <p class="muted">
+            Last saved information. These listings are no longer in the current
+            guide.
+          </p>
+          <div id="my-unavailable-list" class="show-list"></div>
+        </details>
+      </section>
+      <section
+        id="settings-view"
+        class="secondary-view"
+        aria-labelledby="settings-title"
+        hidden
+      >
+        <p class="eyebrow">MAKE YOURSELF AT HOME.</p>
+        <h1 id="settings-title">The little details.</h1>
+        <p class="page-intro">Your look, your plans, your data.</p>
+        <section class="settings-card">
+          <h2>Appearance</h2>
+          <label
+            >Color theme<select id="theme">
+              <option value="system">Match device</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select></label
+          ><label class="check-label"
+            ><input type="checkbox" id="reduce-glass" /> Reduce glass
+            effects</label
+          >
+          <p class="muted">
+            A calmer, more opaque look. Your device's accessibility preferences
+            are also respected.
+          </p>
+        </section>
+        <section class="settings-card">
+          <h2>My Shows</h2>
+          <label
+            >Default collection<select id="default-collection">
+              <option value="all">All saved</option>
+              <option value="favorites">Favorites</option>
+              <option value="going">Going</option>
+            </select></label
+          ><label class="check-label"
+            ><input type="checkbox" id="past-expanded" /> Keep past shows
+            expanded</label
+          ><label class="check-label"
+            ><input type="checkbox" id="discover-badges" checked /> Show my
+            saved badges in Discover</label
+          >
+        </section>
+        <section id="saving-info" class="settings-card">
+          <h2>Your choices stay yours</h2>
+          <p>
+            Favorites help you remember a show. Going means you plan to
+            attend—it doesn't buy a ticket, invite friends, or automatically add
+            anything to your calendar.
+          </p>
+          <p>
+            Your choices are saved on this browser. They're not public and don't
+            sync across devices. Clearing website data, private browsing, or
+            switching browsers may remove them. Export a backup to keep or
+            transfer them.
+          </p>
+          <div class="button-row">
+            <button id="export" type="button" class="primary">
+              Export choices</button
+            ><button id="import" type="button" class="secondary">
+              Import choices</button
+            ><input
+              id="import-file"
+              type="file"
+              accept="application/json,.json"
+              hidden
+            />
+          </div>
+          <p class="muted">
+            Your export contains your personal concert choices. Keep it
+            somewhere you trust.
+          </p>
+          <details class="data-management">
+            <summary>Manage saved choices</summary>
+            <div class="button-row">
+              <button type="button" data-clear="favorite" class="danger">
+                Clear Favorites</button
+              ><button type="button" data-clear="going" class="danger">
+                Clear Going</button
+              ><button type="button" data-clear="all" class="danger">
+                Clear all choices
+              </button>
+            </div>
+          </details>
+        </section>
+        <section id="about-guide" class="settings-card">
+          <h2>About this guide</h2>
+          <p>
+            A personal selection of live music around Tampa Bay and Orlando,
+            curated by Ben and kept up to date with help from Muse. It isn't a
+            complete concert directory or a live ticket search.
+          </p>
+          <p>
+            Top pick, Strong pick, and Worth a look reflect the curator's taste.
+            Curator favorites are separate from your own Favorites.
+          </p>
+          <p>
+            Shows are mostly selected around $100 per person per day or less,
+            with intentional exceptions. All curated prices are shown unless you
+            apply your own filter. Unknown prices are included by default.
+          </p>
+          <p>
+            Prices are listed per person, per show or per day as marked. Fees
+            and ticket availability may change; confirm details with the event
+            or seller before buying. Articles and event details aren't the same
+            as ticket inventory. All event times are Eastern.
+          </p>
+          <p id="freshness-note">
+            The current data does not provide a guide-wide verification time. An
+            added date is when a show was found, not when its tickets were last
+            checked.
+          </p>
+          <a
+            href="https://github.com/llm-i-am/music-like-shows/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Report a listing or website issue</a
+          >
+          <p class="version-line">Concerts & Festivals · Website 1.0.0</p>
+        </section>
+      </section>
+      <div id="storage-warning" class="storage-warning" role="status" hidden>
+        <p id="storage-warning-text">
+          Session only—your browser couldn't save these choices.
+        </p>
+        <button id="warning-export" type="button" class="text-button">
+          Export a backup
+        </button>
       </div>
+      <footer class="site-footer">
+        <span>For the nights worth getting out for.</span
+        ><button type="button" class="text-button" data-open-settings>
+          About this guide</button
+        ><span>All times Eastern</span>
+      </footer>
+      <noscript
+        ><p class="empty-panel">
+          This guide uses JavaScript for concert listings, filters, and saved
+          choices. <a href="data/shows.json">Read the original listings</a>.
+        </p></noscript
+      >
+    </main>
+    <dialog
+      id="filter-dialog"
+      class="filter-dialog glass"
+      aria-labelledby="filter-title"
+    >
+      <form id="filter-form" novalidate>
+        <header class="dialog-header">
+          <div>
+            <p class="eyebrow">FIND YOUR KIND OF NIGHT</p>
+            <h2 id="filter-title" tabindex="-1">Fine-tune the lineup.</h2>
+          </div>
+          <button
+            type="button"
+            id="filter-cancel"
+            class="icon-button"
+            aria-label="Cancel filter changes"
+          >
+            ×
+          </button>
+        </header>
+        <div class="filter-body">
+          <fieldset>
+            <legend>When</legend>
+            <div class="field-grid">
+              <label
+                >Show dates<select id="f-period">
+                  <option value="upcoming">Upcoming</option>
+                  <option value="past">Past shows</option>
+                </select></label
+              ><label
+                >Date range<select id="f-date">
+                  <option value="any">All dates</option>
+                  <option value="today">Today</option>
+                  <option value="weekend">This weekend</option>
+                  <option value="7">Next 7 days</option>
+                  <option value="30">Next 30 days</option>
+                  <option value="custom">Choose dates</option>
+                </select></label
+              >
+            </div>
+            <p id="date-explanation" class="field-help"></p>
+            <div id="custom-dates" class="field-grid" hidden>
+              <label>From<input id="f-from" type="date" /></label
+              ><label>Through<input id="f-to" type="date" /></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Where</legend>
+            <div class="field-grid">
+              <label
+                >City<select id="f-city">
+                  <option value="">All listed cities</option>
+                </select></label
+              ><label
+                >Venue<select id="f-venue">
+                  <option value="">All listed venues</option>
+                </select></label
+              >
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>
+              Price
+              <button
+                id="price-info-button"
+                type="button"
+                class="info-button"
+                aria-label="About listed prices"
+                aria-expanded="false"
+                aria-controls="price-info"
+              >
+                i
+              </button>
+            </legend>
+            <p id="price-info" class="price-info" hidden>
+              Mostly ≤$100/person/day; exceptions included.
+            </p>
+            <div class="price-presets" role="group" aria-label="Price presets">
+              <button type="button" data-max="">All prices</button
+              ><button type="button" data-max="50">≤ $50</button
+              ><button type="button" data-max="70">≤ $70</button
+              ><button type="button" data-max="100">≤ $100</button>
+            </div>
+            <label
+              >Maximum listed price<span class="money-field"
+                ><span aria-hidden="true">$</span
+                ><input
+                  id="f-max"
+                  type="text"
+                  inputmode="decimal"
+                  maxlength="15"
+                  placeholder="No maximum"
+                  aria-describedby="budget-help filter-error" /></span
+            ></label>
+            <p id="budget-help" class="field-help">
+              Per person, per show/day/pass as listed.
+            </p>
+            <label
+              >Price information<select id="f-prices">
+                <option value="all">All listed prices</option>
+                <option value="known">Known prices only</option>
+                <option value="include-unknown">
+                  Include unknown prices with my budget
+                </option>
+                <option value="unknown-only">Unknown prices only</option>
+              </select></label
+            >
+          </fieldset>
+          <fieldset>
+            <legend>Curator's picks</legend>
+            <label
+              >Recommendation<select id="f-pick">
+                <option value="">All picks</option>
+                <option value="1">Top picks</option>
+                <option value="2">Strong picks</option>
+                <option value="3">Worth a look</option>
+              </select></label
+            ><label class="check-label"
+              ><input type="checkbox" id="f-favorite" /> Curator favorites
+              only</label
+            >
+            <p class="field-help">
+              These reflect Ben's taste, not your personal Favorites.
+            </p>
+          </fieldset>
+          <p id="filter-error" class="error-text" role="alert" hidden></p>
+        </div>
+        <footer class="dialog-footer">
+          <button id="filter-reset" type="button" class="quiet-button">
+            Reset filters</button
+          ><button id="filter-apply" type="submit" class="primary">
+            Show concerts
+          </button>
+        </footer>
+      </form>
+    </dialog>
+    <dialog
+      id="confirm-dialog"
+      class="compact-dialog glass"
+      aria-labelledby="confirm-title"
+    >
+      <form method="dialog">
+        <h2 id="confirm-title"></h2>
+        <p id="confirm-copy"></p>
+        <div id="confirm-extra"></div>
+        <div class="button-row">
+          <button value="cancel" autofocus class="secondary">Cancel</button
+          ><button id="confirm-accept" value="confirm" class="primary">
+            Continue
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog
+      id="show-dialog"
+      class="show-dialog glass"
+      aria-labelledby="show-title"
+    >
+      <header class="dialog-header">
+        <span class="eyebrow">THE NIGHT'S DETAILS</span
+        ><button
+          id="show-close"
+          type="button"
+          class="icon-button"
+          aria-label="Close concert details"
+        >
+          ×
+        </button>
+      </header>
+      <div id="show-content"></div>
+    </dialog>
+    <div id="toast" class="toast glass" role="status" aria-live="polite" hidden>
+      <span id="toast-copy"></span
+      ><button id="undo" type="button" class="text-button" hidden>Undo</button
+      ><button
+        id="toast-close"
+        type="button"
+        class="icon-button"
+        aria-label="Dismiss message"
+      >
+        ×
+      </button>
     </div>
-    <div class="control-row toggles">
-      <label class="toggle"><input type="checkbox" id="s-tier"> S-tier only</label>
-      <label class="toggle"><input type="checkbox" id="under70"> Under $70</label>
-      <label class="toggle"><input type="checkbox" id="past-toggle"> Show past shows</label>
-    </div>
-    <div class="control-row selects">
-      <label>City
-        <select id="city"><option value="">All cities</option></select>
-      </label>
-      <label>Venue
-        <select id="venue"><option value="">All venues</option></select>
-      </label>
-      <label>Price
-        <select id="price">
-          <option value="any">Any price</option>
-          <option value="under50">Under $50</option>
-          <option value="50-69">$50–$69</option>
-          <option value="70-100">$70–$100</option>
-          <option value="over100">Over $100</option>
-          <option value="unlisted">Price unlisted</option>
-        </select>
-      </label>
-      <label>Date
-        <select id="date-range">
-          <option value="any">Any date</option>
-          <option value="tonight">Tonight</option>
-          <option value="weekend">This weekend</option>
-          <option value="7">Next 7 days</option>
-          <option value="30">Next 30 days</option>
-        </select>
-      </label>
-      <label>Sort
-        <select id="sort">
-          <option value="date">Date</option>
-          <option value="price-asc">Price low→high</option>
-          <option value="price-desc">Price high→low</option>
-          <option value="best">Best first</option>
-          <option value="found">Recently found</option>
-        </select>
-      </label>
-    </div>
-    <div class="control-row">
-      <button type="button" id="clear-all" hidden>Clear all filters</button>
-    </div>
-  </form>
-
-  <p class="result-count" id="result-count" aria-live="polite"></p>
-  <section id="upcoming-list" class="show-list" aria-label="Upcoming shows"></section>
-  <p class="empty-state" id="empty-state" hidden></p>
-
-  <section id="past-section" hidden>
-    <h2 class="past-heading">Past shows</h2>
-    <div id="past-list" class="show-list past-list"></div>
-  </section>
-</main>
-
-<script src="app.js"></script>
-</body>
+    <script type="module" src="app.js?v=1.0.0"></script>
+  </body>
 </html>
